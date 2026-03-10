@@ -11,6 +11,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.90.21
         version: 5.90.21(react@19.2.3)
+      '@tanstack/react-query-devtools':
+        specifier: ^5.91.3
+        version: 5.91.3(@tanstack/react-query@5.90.21(react@19.2.3))(react@19.2.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -41,6 +44,9 @@ importers:
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
       zustand:
         specifier: ^5.0.11
         version: 5.0.11(@types/react@19.2.14)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
@@ -48,6 +54,9 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.2.1
+      '@tanstack/eslint-plugin-query':
+        specifier: ^5.91.4
+        version: 5.91.4(eslint@9.39.3(jiti@2.6.1))(typescript@5.9.3)
       '@types/node':
         specifier: ^20
         version: 20.19.37
@@ -66,6 +75,9 @@ importers:
       husky:
         specifier: ^9.1.7
         version: 9.1.7
+      prettier:
+        specifier: 3.8.1
+        version: 3.8.1
       shadcn:
         specifier: ^3.8.5
         version: 3.8.5(@types/node@20.19.37)(typescript@5.9.3)
@@ -1423,8 +1435,26 @@ packages:
   '@tailwindcss/postcss@4.2.1':
     resolution: {integrity: sha512-OEwGIBnXnj7zJeonOh6ZG9woofIjGrd2BORfvE5p9USYKDCZoQmfqLcfNiRWoJlRWLdNPn2IgVZuWAOM4iTYMw==}
 
+  '@tanstack/eslint-plugin-query@5.91.4':
+    resolution: {integrity: sha512-8a+GAeR7oxJ5laNyYBQ6miPK09Hi18o5Oie/jx8zioXODv/AUFLZQecKabPdpQSLmuDXEBPKFh+W5DKbWlahjQ==}
+    peerDependencies:
+      eslint: ^8.57.0 || ^9.0.0
+      typescript: ^5.0.0
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   '@tanstack/query-core@5.90.20':
     resolution: {integrity: sha512-OMD2HLpNouXEfZJWcKeVKUgQ5n+n3A2JFmBaScpNDUqSrQSjiveC7dKMe53uJUg1nDG16ttFPz2xfilz6i2uVg==}
+
+  '@tanstack/query-devtools@5.93.0':
+    resolution: {integrity: sha512-+kpsx1NQnOFTZsw6HAFCW3HkKg0+2cepGtAWXjiiSOJJ1CtQpt72EE2nyZb+AjAbLRPoeRmPJ8MtQd8r8gsPdg==}
+
+  '@tanstack/react-query-devtools@5.91.3':
+    resolution: {integrity: sha512-nlahjMtd/J1h7IzOOfqeyDh5LNfG0eULwlltPEonYy0QL+nqrBB+nyzJfULV+moL7sZyxc2sHdNJki+vLA9BSA==}
+    peerDependencies:
+      '@tanstack/react-query': ^5.90.20
+      react: ^18 || ^19
 
   '@tanstack/react-query@5.90.21':
     resolution: {integrity: sha512-0Lu6y5t+tvlTJMTO7oh5NSpJfpg/5D41LlThfepTixPYkJ0sE2Jj0m0f6yYqujBwIXlId87e234+MxG3D3g7kg==}
@@ -3155,6 +3185,11 @@ packages:
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
+
+  prettier@3.8.1:
+    resolution: {integrity: sha512-UOnG6LftzbdaHZcKoPFtOcCKztrQ57WkHDeRD9t/PTQtmT0NHSeWWepj6pS0z/N7+08BHFDQVUrfmfMRcZwbMg==}
+    engines: {node: '>=14'}
+    hasBin: true
 
   pretty-ms@9.3.0:
     resolution: {integrity: sha512-gjVS5hOP+M3wMm5nmNOucbIrqudzs9v/57bWRHQWLYklXqoXKrVfYW2W9+glfGsqtPgpiz5WwyEEB+ksXIx3gQ==}
@@ -5171,7 +5206,24 @@ snapshots:
       postcss: 8.5.8
       tailwindcss: 4.2.1
 
+  '@tanstack/eslint-plugin-query@5.91.4(eslint@9.39.3(jiti@2.6.1))(typescript@5.9.3)':
+    dependencies:
+      '@typescript-eslint/utils': 8.56.1(eslint@9.39.3(jiti@2.6.1))(typescript@5.9.3)
+      eslint: 9.39.3(jiti@2.6.1)
+    optionalDependencies:
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - supports-color
+
   '@tanstack/query-core@5.90.20': {}
+
+  '@tanstack/query-devtools@5.93.0': {}
+
+  '@tanstack/react-query-devtools@5.91.3(@tanstack/react-query@5.90.21(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@tanstack/query-devtools': 5.93.0
+      '@tanstack/react-query': 5.90.21(react@19.2.3)
+      react: 19.2.3
 
   '@tanstack/react-query@5.90.21(react@19.2.3)':
     dependencies:
@@ -6988,6 +7040,8 @@ snapshots:
   powershell-utils@0.1.0: {}
 
   prelude-ls@1.2.1: {}
+
+  prettier@3.8.1: {}
 
   pretty-ms@9.3.0:
     dependencies:
