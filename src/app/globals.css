@@ -124,3 +124,20 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+/* Hero section ambient glow — soft, cohesive with theme */
+.hero-glow {
+  background: radial-gradient(
+    ellipse 90% 55% at 50% -10%,
+    oklch(0.96 0.008 260 / 0.25) 0%,
+    transparent 55%
+  );
+}
+.dark .hero-glow {
+  background: radial-gradient(
+    ellipse 90% 55% at 50% -10%,
+    oklch(0.22 0.015 260 / 0.2) 0%,
+    transparent 55%
+  );
+}
