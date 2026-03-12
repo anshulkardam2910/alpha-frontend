@@ -21,4 +21,7 @@ export const queryKeys = {
   },
 } as const;
 
-export const IsProduction = process.env.NODE_ENV === 'production';
+// TODO: control later via env.checker with zod
+
+export const IsProduction = process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
+export const IsPreview = process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
