@@ -13,7 +13,7 @@ export function AuthDivider({
         <span className="w-full border-t border-border" />
       </div>
       <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-background/80 backdrop-blur px-3 text-muted-foreground">
+        <span className="bg-background/80 backdrop-blur px-3 font-medium text-muted-foreground">
           {label}
         </span>
       </div>
