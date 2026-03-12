@@ -34,7 +34,7 @@ const playfairDisplay = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'Alpha | AI For GTM Teams',
+  title: 'Alpha Preview | AI For GTM Teams',
   description: 'Alpha is a platform for managing your contacts and businesses.',
 };
 
