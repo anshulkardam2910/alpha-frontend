@@ -16,6 +16,9 @@ import { z } from 'zod/v4';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { useRouter } from 'next/navigation';
 import { AuthOAuthButtons } from '@/modules/auth/components/AuthOAuthButtons';
+import { useAuthStore } from '@/store/authStore';
+import { GoogleAuthResponse } from '@/services/google-oauth.service';
+import { OAuthResponse, User } from '@/modules/auth/types';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -37,7 +40,9 @@ export default function SignupPage() {
     (data: SignUpForm) => {
       signup(data, {
         onSuccess: (data) => {
-          //TODO: Set Tokens and user data in the context
+          useAuthStore
+            .getState()
+            .login({ accessToken: data.accessToken, refreshToken: data.refreshToken }, data.user);
           toast.success('Successfully signed up!');
           form.reset();
           startTransition(() => {
@@ -52,6 +57,38 @@ export default function SignupPage() {
     [signup],
   );
 
+  const handleOAuthSuccess = (response: OAuthResponse) => {
+    const userWithMemberships = {
+      ...response.user,
+      memberships: response.user.memberships || [],
+    } as User;
+    useAuthStore
+      .getState()
+      .login(
+        { accessToken: response.accessToken, refreshToken: response.refreshToken },
+        userWithMemberships,
+      );
+
+    if (response.isNewUser) {
+      toast.success('Welcome! Your account has been created with Google.');
+    } else {
+      toast.success('Welcome back!');
+    }
+
+    // Check if workspace setup is needed
+    if (response.needsWorkspaceSetup) {
+      router.push('/workspace-setup');
+      return;
+    }
+
+    // Go to dashboard if everything is set up
+    router.push('/dashboard');
+  };
+
+  const handleOAuthError = (provider: string) => (error: Error) => {
+    toast.error(`${provider} sign-up failed: ${error.message}`);
+  };
+
   return (
     <div>
       <div className="mb-8">
@@ -59,7 +96,14 @@ export default function SignupPage() {
         <p className="text-muted-foreground">Join the alpha and start automating your outreach</p>
       </div>
 
-      <AuthOAuthButtons />
+      <AuthOAuthButtons
+        onSuccess={handleOAuthSuccess}
+        onError={handleOAuthError('google')}
+        disabled={isPending}
+        text={false ? 'Accept invitation with Google' : 'Continue with Google'}
+        inviteId={undefined}
+        isSignup={true}
+      />
 
       <AuthDivider label="or continue with email" className="my-6" />
 

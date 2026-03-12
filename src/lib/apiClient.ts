@@ -100,7 +100,7 @@ apiClient.interceptors.response.use(
       });
     }
 
-    const { status, data } = error.response as AxiosResponse<any>;
+    const { status, data } = error.response as AxiosResponse<unknown>;
 
     // 401 + refresh token exists + not already a refresh call
     if (status === 401 && !originalConfig._skipAuthRefresh) {
@@ -148,13 +148,20 @@ apiClient.interceptors.response.use(
 //  Custom:           { statusCode, code: "MY_CODE", message }
 // ---------------------------------------------------------------------------
 
-function normalizeError(status: number, data: any): ApiError {
-  if (Array.isArray(data?.message)) {
+interface ApiErrorResponse {
+  message?: string | string[];
+  code?: string;
+}
+
+function normalizeError(status: number, data: unknown): ApiError {
+  const err = data as ApiErrorResponse | null | undefined;
+
+  if (err && Array.isArray(err.message)) {
     return new ApiError({
       status,
       message: 'Validation failed. Please check the form.',
       code: 'VALIDATION_ERROR',
-      errors: parseValidationMessages(data.message),
+      errors: parseValidationMessages(err.message),
     });
   }
 
@@ -171,10 +178,15 @@ function normalizeError(status: number, data: any): ApiError {
     503: 'Service temporarily unavailable.',
   };
 
+  const message =
+    typeof err?.message === 'string'
+      ? err.message
+      : fallback[status] ?? 'An unexpected error occurred.';
+
   return new ApiError({
     status,
-    message: data?.message ?? fallback[status] ?? 'An unexpected error occurred.',
-    code: data?.code,
+    message,
+    code: err?.code,
   });
 }
 

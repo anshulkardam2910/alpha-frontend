@@ -3,13 +3,11 @@
 import { useState, useCallback, startTransition } from 'react';
 import Link from 'next/link';
 import { Controller, useForm } from 'react-hook-form';
-import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthDivider } from '@/modules/auth/components/AuthDivider';
-import { authApi } from '@/services/auth';
 import { ApiError } from '@/lib/apiClient';
 import { SignInForm, signInSchema } from '@/modules/auth/schema';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,6 +15,8 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { AuthOAuthButtons } from '@/modules/auth/components/AuthOAuthButtons';
 import { useRouter } from 'next/navigation';
 import { useSignIn } from '@/modules/auth/hooks';
+import { useAuthStore } from '@/store/authStore';
+import { OAuthResponse, User } from '@/modules/auth/types';
 
 export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -35,7 +35,12 @@ export default function SignInPage() {
     (data: SignInForm) => {
       signIn(data, {
         onSuccess: (response) => {
-          //TODO: Set Tokens and user data in the context
+          useAuthStore
+            .getState()
+            .login(
+              { accessToken: response.accessToken, refreshToken: response.refreshToken },
+              response.user,
+            );
           toast.success('Successfully logged in!');
           form.reset();
           startTransition(() => {
@@ -60,6 +65,39 @@ export default function SignInPage() {
     [signIn],
   );
 
+  const handleOAuthSuccess = (response: OAuthResponse) => {
+    const userWithMemberships = {
+      ...response.user,
+      memberships: response.user.memberships || [],
+    } as User;
+
+    useAuthStore
+      .getState()
+      .login(
+        { accessToken: response.accessToken, refreshToken: response.refreshToken },
+        userWithMemberships,
+      );
+
+    if (response.isNewUser) {
+      toast.success('Welcome! Your account has been created with Google.');
+    } else {
+      toast.success('Welcome back!');
+    }
+
+    // Check if workspace setup is needed
+    if (response.needsWorkspaceSetup) {
+      router.push('/workspace-setup');
+      return;
+    }
+
+    // Go to dashboard if everything is set up
+    router.push('/dashboard');
+  };
+
+  const handleOAuthError = (provider: string) => (error: Error) => {
+    toast.error(`${provider} sign-up failed: ${error.message}`);
+  };
+
   return (
     <>
       <div className="mb-8">
@@ -70,7 +108,14 @@ export default function SignInPage() {
         </p>
       </div>
 
-      <AuthOAuthButtons />
+      <AuthOAuthButtons
+        onSuccess={handleOAuthSuccess}
+        onError={handleOAuthError('google')}
+        disabled={isPending}
+        text={false ? 'Accept invitation with Google' : 'Continue with Google'}
+        inviteId={undefined}
+        isSignup={false}
+      />
 
       <AuthDivider label="or" />
 

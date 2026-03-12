@@ -17,7 +17,7 @@ export default function AuthLayout({
               alt="Alpha"
               width={120}
               height={48}
-              className="h-12 w-auto object-contain"
+              className="h-12 w-auto object-contain rounded-xs"
               priority
             />
           </Link>

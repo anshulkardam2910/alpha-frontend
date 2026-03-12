@@ -2,14 +2,75 @@
 
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import googleOauthService, { GoogleAuthResponse } from '@/services/google-oauth.service';
+import { linkedinOAuthService } from '@/services/linkedin-oauth.service';
+import outlookOAuthService from '@/services/outlook-oauth.service';
+import { OAuthResponse } from '../types';
 
 type OAuthProvider = 'google' | 'linkedin' | 'microsoft';
 
-export function AuthOAuthButtons() {
+interface Props {
+  onSuccess: (response: OAuthResponse) => void;
+  onError: (error: Error) => void;
+  disabled?: boolean;
+  className?: string;
+  text?: string;
+  inviteId?: string;
+  isSignup?: boolean;
+}
+
+export function AuthOAuthButtons({
+  onSuccess,
+  onError,
+  disabled,
+  text,
+  inviteId,
+  isSignup,
+}: Props) {
+  const handleGoogleAuth = async () => {
+    try {
+      const response = await googleOauthService.authenticateWithGoogle(inviteId, isSignup);
+
+      // For Safari browsers, response will be void (redirect flow)
+      // For other browsers, response will be GoogleAuthResponse (popup flow)
+      if (response) {
+        onSuccess(response as OAuthResponse);
+      }
+      // If response is void, the user will be redirected and the callback page will handle success
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleLinkedInAuth = async () => {
+    try {
+      console.log('LinkedIn OAuth - Starting authentication...', { inviteId, isSignup });
+      const response = await linkedinOAuthService.authenticateWithLinkedIn(inviteId, isSignup);
+      console.log('LinkedIn OAuth - Success:', response);
+      onSuccess(response as OAuthResponse);
+    } catch (error) {
+      console.error('LinkedIn OAuth - Error:', error);
+      onError(error instanceof Error ? error : new Error('LinkedIn authentication failed'));
+    }
+  };
+
+  const handleOutlookAuth = async () => {
+    try {
+      const response = await outlookOAuthService.authenticateWithOutlook(inviteId, isSignup);
+      if (response) {
+        onSuccess(response as OAuthResponse);
+      }
+    } catch (error) {
+      onError(error instanceof Error ? error : new Error('Microsoft authentication failed'));
+    }
+  };
+
   return (
     <div className="flex w-full items-center gap-3">
       <Button
         type="button"
+        onClick={handleGoogleAuth}
+        disabled={disabled}
         variant="outline"
         className="h-11 flex-1 rounded-lg border border-input bg-background px-4 py-2 flex items-center justify-center hover:bg-accent hover:text-accent-foreground"
       >
@@ -25,6 +86,8 @@ export function AuthOAuthButtons() {
 
       <Button
         type="button"
+        onClick={handleLinkedInAuth}
+        disabled={disabled}
         variant="outline"
         className="h-11 flex-1 rounded-lg border border-input bg-background px-4 py-2 flex items-center justify-center hover:bg-accent hover:text-accent-foreground"
       >
@@ -40,6 +103,8 @@ export function AuthOAuthButtons() {
 
       <Button
         type="button"
+        onClick={handleOutlookAuth}
+        disabled={disabled}
         variant="outline"
         className="h-11 flex-1 rounded-lg border border-input bg-background px-4 py-2 flex items-center justify-center hover:bg-accent hover:text-accent-foreground"
       >
