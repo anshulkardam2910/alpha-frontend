@@ -1,11 +1,10 @@
-import Link from "next/link";
-import Image from "next/image";
-import { ModeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
-import { IsProduction } from "@/utils/constants";
+import Link from 'next/link';
+import Image from 'next/image';
+import { ModeToggle } from '@/components/theme-toggle';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 function MainHeader() {
-  console.log("prod:",IsProduction)
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/85 dark:bg-background/90 backdrop-blur-xl border-b border-border/80">
       <nav className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
@@ -13,7 +12,7 @@ function MainHeader() {
           href="/"
           className="flex items-center gap-3 text-foreground hover:opacity-90 transition-opacity duration-200"
         >
-          <div className="relative w-8 h-8 shrink-0 rounded-lg overflow-hidden bg-muted">
+          <div className="relative w-8 h-8 shrink-0 rounded-md overflow-hidden bg-muted">
             <Image
               src="/alpha.jpg"
               alt="Alpha"
@@ -23,7 +22,7 @@ function MainHeader() {
               priority
             />
           </div>
-          <span className="font-bold text-xl tracking-tight">alpha</span>
+          <span className="font-semibold font-sans text-xl tracking-tight">alpha</span>
         </Link>
 
         <div className="absolute left-1/2 -translate-x-1/2">
@@ -68,7 +67,7 @@ function MainHeader() {
             href="/signin"
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
           >
-            Log in
+            Sign in
           </Link>
           <ModeToggle />
         </div>
@@ -83,18 +82,17 @@ function HeroSection() {
       <div className="max-w-4xl mx-auto">
         <div className="inline-flex items-center px-4 py-2 rounded-full bg-muted/80 dark:bg-muted/40 border border-border/60 text-xs font-medium text-muted-foreground mb-10 tracking-wide">
           <span className="w-1.5 h-1.5 bg-primary/50 rounded-full mr-2.5 animate-pulse" />
-          AI for GTM teams
+          AI for GTM teams <Spinner className='ml-2' />
         </div>
 
-        <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-foreground mb-8 leading-[1.08]">
+        <h1 className="text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-foreground mb-8 leading-[1.08]">
           Full-Funnel Momentum
           <br />
           on Autopilot
         </h1>
 
         <p className="text-lg sm:text-xl text-muted-foreground/95 max-w-2xl mx-auto mb-12 leading-relaxed">
-          Create compelling, perfectly-timed outreach on every channel, powered
-          by agentic AI.
+          Create compelling, perfectly-timed outreach on every channel, powered by agentic AI.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">

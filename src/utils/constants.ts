@@ -15,8 +15,10 @@ export const product = {
   },
 };
 
-export const AUTH_QUERY_KEYS ={
+export const queryKeys = {
+  auth: {
     currentUser: ['currentUser'],
-}
+  },
+} as const;
 
 export const IsProduction = process.env.NODE_ENV === 'production';

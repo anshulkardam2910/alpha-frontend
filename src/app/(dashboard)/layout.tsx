@@ -1,8 +1,13 @@
 import React from 'react'
 
-const DashboardLayout = () => {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div>DashboardLayout</div>
+    <div className="min-h-screen bg-background">
+      {children}
+    </div>
   )
 }
-export default DashboardLayout
