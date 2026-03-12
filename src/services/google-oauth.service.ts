@@ -145,7 +145,7 @@ export class GoogleOAuthService {
     }
 
     console.log("Google OAuth callback", code, state, inviteId, API_BASE_URL);
-    const response = await fetch(`${API_BASE_URL}/bhai/google/callback`, {
+    const response = await fetch(`${API_BASE_URL}/google/callback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
