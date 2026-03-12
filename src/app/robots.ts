@@ -4,7 +4,7 @@ import { IsProduction, product } from '@/utils/constants'
 const baseUrl = product.links.website
 
 export default function robots(): MetadataRoute.Robots {
-  if (!IsProduction) {
+  if (true) {
     return {
       rules: {
         userAgent: '*',

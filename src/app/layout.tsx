@@ -4,6 +4,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import Providers from '@/components/providers';
 import { Toaster } from '@/components/ui/sonner';
+import { IsProduction } from '@/utils/constants';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -34,7 +35,7 @@ const playfairDisplay = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'Alpha Preview | AI For GTM Teams',
+  title: IsProduction ? 'Alpha | AI For GTM Teams' : 'Alpha Preview | AI For GTM Teams',
   description: 'Alpha is a platform for managing your contacts and businesses.',
 };
 
