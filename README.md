@@ -1,36 +1,241 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Alpha — AI for GTM Teams
 
-## Getting Started
+## 🌐 Overview
+ 
+Modern revenue teams juggle dozens of tools (CRM, email sequencer, ads manager, dialers, analytics, etc.) and rely on manual orchestration for GTM campaigns. Alpha replaces this fragmented stack with a unified, agentic platform that plans, executes, and iterates on GTM campaigns—so every prospect touch happens at the right time, on the right channel, with the right context.
+ 
+| Environment | URL | Branch |
+|---|---|---|
+| 🟢 Production | https://alpha-frontend-prod.vercel.app | `main` |
+| 🟡 Staging | https://alpha-frontend-preview.vercel.app/ | `staging` |
 
-First, run the development server:
 
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [Environment Variables](#environment-variables)
+- [Deployment](#deployment)
+
+## 🚀 Getting Started
+ 
+Get up and running in under 5 minutes.
+ 
+### Prerequisites
+ 
+| Tool | Version | Install |
+|---|---|---|
+| Node.js | `>= 24` | [nodejs.org](https://nodejs.org/) or `nvm use` |
+| pnpm | `>= 10.x` | `npm i -g pnpm` |
+| Git | `>= 2.x` | [git-scm.com](https://git-scm.com/) |
+ 
+ 
+### Step 1 — Clone
+ 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+git clone https://github.com/alphaframepvtltd/Web-Application.git
+cd Web-Application
+```
+ 
+### Step 2 — Install dependencies
+ 
+```bash
+pnpm install
+```
+ 
+### Step 3 — Set up environment variables
+ 
+```bash
+cp .env.example .env.local
+```
+ 
+Open `.env.local` and fill in the required values. See the [Environment Variables](#-environment-variables) section for a full reference.
+ 
+### Step 4 — Start the dev server
+ 
+```bash
 pnpm dev
-# or
-bun dev
+```
+## Tech Stack
+ 
+| Layer | Choice | Why |
+|---|---|---|
+| Framework | Next.js 16 (App Router) | RSC, streaming, edge support |
+| Language | TypeScript | End-to-end type safety |
+| Styling | Tailwind CSS | Fast, consistent, zero runtime |
+| Data Fetching | TanStack Query v5 | Caching, optimistic updates |
+| Forms | React Hook Form + Zod | Performant, schema-validated |
+| Error Tracking | Sentry | Production error monitoring |
+| CI/CD | GitHub Actions + Vercel | Preview deploys on every PR |
+## 📁 Project Structure
+ 
+We use a **feature-based structure** inside the Next.js App Router. Code is co-located with what it belongs to.
+ 
+```
+frontend/
+├── public/                        # Static assets (favicons, OG images, fonts)
+
+├── src/
+│
+│   ├── app/                       # Next.js App Router
+│   │   ├── (marketing)/           # Public marketing pages
+│   │   │   ├── layout.tsx
+│   │   │   ├── page.tsx
+│   │   │   └── pricing/
+│   │   │       └── page.tsx
+│   │   │
+│   │   ├── (auth)/                # Authentication routes
+│   │   │   ├── login/
+│   │   │   │   └── page.tsx
+│   │   │   ├── register/
+│   │   │   │   └── page.tsx
+│   │   │   └── layout.tsx
+│   │   │
+│   │   ├── dashboard/             # Main authenticated application
+│   │   │   ├── layout.tsx
+│   │   │   ├── page.tsx
+│   │   │   │
+│   │   │   ├── users/
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── [id]/
+│   │   │   │       └── page.tsx
+│   │   │   │
+│   │   │   └── settings/
+│   │   │       └── page.tsx
+│   │
+│   │   └── layout.tsx             # Root layout (providers, fonts, global UI)
+│
+│
+│   ├── modules/                   # Feature-based architecture
+│   │
+│   │   ├── auth/
+│   │   │   ├── components/
+│   │   │   ├── hooks/
+│   │   │   ├── server/
+│   │   │   ├── actions.ts
+│   │   │   ├── schema.ts
+│   │   │   └── types.ts
+│   │   │
+│   │   ├── users/
+│   │   │   ├── components/
+│   │   │   ├── hooks/
+│   │   │   ├── server/
+│   │   │   ├── actions.ts
+│   │   │   ├── schema.ts
+│   │   │   └── types.ts
+│   │   │
+│   │   ├── billing/
+│   │   │   ├── components/
+│   │   │   ├── server/
+│   │   │   ├── stripe.ts
+│   │   │   └── types.ts
+│
+│
+│   ├── components/                # Shared reusable UI components
+│   │   ├── ui/                    # Design system primitives
+│   │   │   ├── button.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── input.tsx
+│   │   │   └── modal.tsx
+│   │   │
+│   │   ├── layout/                # Layout components
+│   │   │   ├── navbar.tsx
+│   │   │   ├── sidebar.tsx
+│   │   │   └── footer.tsx
+│   │   │
+│   │   └── common/                # Shared utility components
+│   │       ├── loader.tsx
+│   │       ├── empty-state.tsx
+│   │       └── error-boundary.tsx
+│
+│
+│   ├── services/                  # API service layer
+│   │   ├── api-client.ts
+│   │   ├── auth.ts
+│   │   ├── user.ts
+│   │   ├── feedback.service.ts
+│   │   └── billing.service.ts
+│
+│
+│   ├── lib/                       # Core utilities and infrastructure
+│   │   ├── db.ts
+│   │   ├── env.ts
+│   │   ├── fetcher.ts
+│   │   └── logger.ts
+│
+│
+│   ├── hooks/                     # Global reusable hooks
+│   │   ├── use-auth.ts
+│   │   ├── use-debounce.ts
+│   │   └── use-media-query.ts
+│
+│
+│   ├── store/                     # Global state (Zustand)
+│   │   ├── auth-store.ts
+│   │   └── ui-store.ts
+│
+│
+│   ├── config/                    # App configuration
+│   │   ├── site.ts
+│   │   ├── routes.ts
+│   │   └── constants.ts
+│
+│
+│   ├── types/                     # Global TypeScript types
+│   │   ├── api.ts
+│   │   ├── user.ts
+│   │   └── common.ts
+│
+│
+│   ├── proxy.ts
+│   └── instrumentation.ts
+│
+├── .env.example
+├── next.config.js
+├── tailwind.config.ts
+├── tsconfig.json
+└── package.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+To run this project, you will need to add the following environment variables to your .env file
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`NEXT_PUBLIC_API_BASE_URL`
 
-## Learn More
+`NEXT_PUBLIC_APP_URL`
 
-To learn more about Next.js, take a look at the following resources:
+## 🚀 Deployment
+ 
+Vercel is currently used for frontend deployments.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Because this repository lives inside a private organization and direct Vercel integration would require a Vercel Pro plan, deployments are handled through a mirror repository.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+A GitHub Action automatically mirrors this repository to a separate repo that Vercel is connected to.
 
-## Deploy on Vercel
+Mirror repository:
+https://github.com/anshulkardam2910/alpha-frontend
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Workflow reference:
+`/.github/workflows/mirror.yml`
+ 
+**Deploy flow:**
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Push to main or dev
+        │
+        ▼
+GitHub Action runs
+        │
+        ▼
+Repository mirrored to:
+anshulkardam2910/alpha-frontend
+        │
+        ▼
+Vercel automatically builds and deploys
+
+### Environment Behavior
+
+Push to main  →  Production deployment
+Push to dev   →  Preview / staging deployment
