@@ -1,4 +1,5 @@
 "use client";
+
 import axios, {
   AxiosError,
   AxiosInstance,
@@ -65,6 +66,11 @@ function handleSessionExpired() {
   }
 }
 
+function isAuthEndpoint(url?: string): boolean {
+  if (!url) return false;
+  return url.includes('/auth/');
+}
+
 export const apiClient: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
   timeout: 15_000,
@@ -102,8 +108,8 @@ apiClient.interceptors.response.use(
 
     const { status, data } = error.response as AxiosResponse<unknown>;
 
-    // 401 + refresh token exists + not already a refresh call
-    if (status === 401 && !originalConfig._skipAuthRefresh) {
+    // 401 + not an auth endpoint + not already flagged to skip
+    if (status === 401 && !originalConfig._skipAuthRefresh && !isAuthEndpoint(originalConfig.url)) {
       // Another refresh is in flight — queue this request
       if (isRefreshing) {
         return new Promise<string>((resolve, reject) => {
@@ -129,9 +135,11 @@ apiClient.interceptors.response.use(
         originalConfig.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(originalConfig);
       } catch (refreshError) {
+        // Transient error (network, server down) — don't kill the session
         processQueue(refreshError, null);
-        handleSessionExpired();
-        return Promise.reject(refreshError);
+        return Promise.reject(
+          new ApiError({ status: 0, message: 'Unable to refresh session. Please try again.' }),
+        );
       } finally {
         isRefreshing = false;
       }

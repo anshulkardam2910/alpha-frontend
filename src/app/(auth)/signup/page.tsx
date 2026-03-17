@@ -1,107 +1,197 @@
 'use client';
 
-import { startTransition, useCallback, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff } from 'lucide-react';
 import { AuthDivider } from '../../../modules/auth/components/AuthDivider';
-import { SignUpForm, signUpSchema } from '@/modules/auth/schema';
+import { type SignUpForm, signUpSchema } from '@/modules/auth/schema';
 import { useSignup } from '@/modules/auth/hooks';
 import { toast } from 'sonner';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { z } from 'zod/v4';
+import { type z } from 'zod/v4';
 import { PhoneInput } from '@/components/ui/phone-input';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthOAuthButtons } from '@/modules/auth/components/AuthOAuthButtons';
 import { useAuthStore } from '@/store/authStore';
-import { GoogleAuthResponse } from '@/services/google-oauth.service';
-import { OAuthResponse, User } from '@/modules/auth/types';
+import { type OAuthResponse, type User } from '@/modules/auth/types';
+import { useQuery } from '@tanstack/react-query';
+import { get as apiGet } from '@/lib/apiClient';
+import { API_ENDPOINTS } from '@/lib/api.config';
+
+interface InviteInfo {
+  membershipId: string;
+  workspaceName: string;
+  workspaceDomain: string;
+  role: string;
+  userEmail: string;
+}
+
+interface PendingInvite {
+  membershipId: string;
+  workspace: { name: string; domain: string };
+  role: string;
+}
 
 export default function SignupPage() {
+  const searchParams = useSearchParams();
+  const inviteId = searchParams.get('invite');
+  const inviteEmail = searchParams.get('email');
+
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const { mutate: signup, isPending } = useSignup();
+
   const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
       firstName: '',
       lastName: '',
-      email: '',
+      email: (inviteId && inviteEmail) ? inviteEmail : '',
       phone: '',
       password: '',
     },
   });
 
-  const [showPassword, setShowPassword] = useState(false);
-  const { mutate: signup, isPending } = useSignup();
+  const inviteInfoQuery = useQuery({
+    queryKey: ['invite-info', inviteId],
+    queryFn: ({ signal }) =>
+      apiGet<InviteInfo>(API_ENDPOINTS.INVITES.INFO(inviteId!), { signal }),
+    enabled: !!inviteId,
+  });
 
-  const onSubmit = useCallback(
-    (data: SignUpForm) => {
-      signup(data, {
-        onSuccess: (data) => {
-          useAuthStore
-            .getState()
-            .login({ accessToken: data.accessToken, refreshToken: data.refreshToken }, data.user);
-          toast.success('Successfully signed up!');
-          form.reset();
-          startTransition(() => {
-            router.replace('/dashboard');
-          });
-        },
-        onError: (error: any) => {
-          toast.error(error.message || 'Something went wrong. Please try again.');
-        },
-      });
-    },
-    [signup],
-  );
+  const pendingInviteQuery = useQuery({
+    queryKey: ['pending-invite', inviteEmail],
+    queryFn: ({ signal }) =>
+      apiGet<PendingInvite[]>(
+        API_ENDPOINTS.INVITES.PENDING_BY_EMAIL(encodeURIComponent(inviteEmail!)),
+        { signal },
+      ),
+    enabled: !!inviteEmail && !inviteId,
+  });
 
-  const handleOAuthSuccess = (response: OAuthResponse) => {
+  const pendingInvite = pendingInviteQuery.data?.[0];
+
+  const inviteInfo: InviteInfo | null =
+    inviteInfoQuery.data ??
+    (pendingInvite
+      ? {
+          membershipId: pendingInvite.membershipId,
+          workspaceName: pendingInvite.workspace.name,
+          workspaceDomain: pendingInvite.workspace.domain,
+          role: pendingInvite.role,
+          userEmail: inviteEmail!,
+        }
+      : null);
+
+  const isInviteSignup = !!inviteInfo;
+
+  useEffect(() => {
+    if (!inviteInfo) return;
+    if (inviteInfo.userEmail) form.setValue('email', inviteInfo.userEmail);
+    form.setValue('inviteId', inviteInfo.membershipId);
+  }, [inviteInfo, form]);
+
+  useEffect(() => {
+    if (pendingInvite) {
+      toast.success(
+        `You have a pending invitation to join ${pendingInvite.workspace.name}. Complete your account setup to accept it.`,
+      );
+    }
+  }, [pendingInvite]);
+
+  function onSubmit(formData: SignUpForm) {
+    signup(formData, {
+      onSuccess: (response) => {
+        useAuthStore.getState().login(
+          { accessToken: response.accessToken, refreshToken: response.refreshToken },
+          response.user,
+        );
+
+        toast.success(
+          isInviteSignup
+            ? 'Account created and invitation accepted! Welcome to the workspace.'
+            : 'Successfully signed up!',
+        );
+
+        startTransition(() => {
+          router.replace(isInviteSignup ? '/dashboard' : '/workspace-setup');
+        });
+
+        form.reset();
+      },
+      onError: (error) => {
+        const message = error.message || 'Failed to sign up';
+        if (message.includes('workspace exists')) {
+          toast.error(
+            'This workspace already exists. An invitation has been sent to the workspace owner.',
+          );
+        } else {
+          toast.error(message);
+        }
+      },
+    });
+  }
+
+  function handleOAuthSuccess(response: OAuthResponse) {
     const userWithMemberships = {
       ...response.user,
-      memberships: response.user.memberships || [],
+      memberships: response.user.memberships ?? [],
     } as User;
-    useAuthStore
-      .getState()
-      .login(
-        { accessToken: response.accessToken, refreshToken: response.refreshToken },
-        userWithMemberships,
-      );
 
-    if (response.isNewUser) {
-      toast.success('Welcome! Your account has been created with Google.');
-    } else {
-      toast.success('Welcome back!');
+    useAuthStore.getState().login(
+      { accessToken: response.accessToken, refreshToken: response.refreshToken },
+      userWithMemberships,
+    );
+
+    toast.success(response.isNewUser ? 'Welcome! Your account has been created.' : 'Welcome back!');
+
+    if (isInviteSignup) {
+      toast.success('Invitation accepted!');
     }
 
-    // Check if workspace setup is needed
-    if (response.needsWorkspaceSetup) {
-      router.push('/workspace-setup');
-      return;
-    }
-
-    // Go to dashboard if everything is set up
-    router.push('/dashboard');
-  };
-
-  const handleOAuthError = (provider: string) => (error: Error) => {
-    toast.error(`${provider} sign-up failed: ${error.message}`);
-  };
+    startTransition(() => {
+      router.replace(response.needsWorkspaceSetup ? '/workspace-setup' : '/dashboard');
+    });
+  }
 
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Create an account</h1>
-        <p className="text-muted-foreground">Join the alpha and start automating your outreach</p>
+        {isInviteSignup && inviteInfo ? (
+          <>
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-linear-to-br from-blue-500 to-purple-600 mb-4">
+              <span className="text-white font-bold text-lg">
+                {inviteInfo.workspaceName[0]?.toUpperCase() ?? 'W'}
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+              Join {inviteInfo.workspaceName}
+            </h1>
+            <p className="text-muted-foreground">
+              You&apos;ve been invited as a{' '}
+              <span className="font-medium text-foreground">{inviteInfo.role}</span>
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Create an account</h1>
+            <p className="text-muted-foreground">
+              Join the alpha and start automating your outreach
+            </p>
+          </>
+        )}
       </div>
 
       <AuthOAuthButtons
         onSuccess={handleOAuthSuccess}
-        onError={handleOAuthError('google')}
+        onError={(error: Error) => toast.error(`Sign-up failed: ${error.message}`)}
         disabled={isPending}
-        text={false ? 'Accept invitation with Google' : 'Continue with Google'}
-        inviteId={undefined}
+        inviteId={inviteId ?? undefined}
+        text={isInviteSignup ? 'Accept invitation with Google' : 'Continue with Google'}
         isSignup={true}
       />
 
@@ -223,12 +313,16 @@ export default function SignupPage() {
           />
 
           <Button type="submit" disabled={isPending} className="w-full h-12">
-            {isPending ? 'Creating account...' : 'Create account'}
+            {isPending
+              ? 'Creating account...'
+              : isInviteSignup
+                ? 'Create account & join workspace'
+                : 'Create account'}
           </Button>
         </FieldGroup>
       </form>
 
-      <p className="text-center  mt-6 text-xs text-muted-foreground">
+      <p className="text-center mt-6 text-xs text-muted-foreground">
         By signing up, you agree to our{' '}
         <Link href="#" className="text-primary hover:underline">
           Terms of Service

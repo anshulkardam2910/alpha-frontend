@@ -31,7 +31,17 @@ export const API_ENDPOINTS = {
     CALLBACK: '/identity/auth/outlook/callback',
   },
   WORKSPACE: {
+    CURRENT: '/identity/workspaces/current',
+    DETAILS: (workspaceId: string) => `/identity/workspaces/${workspaceId}`,
+    MY_PERMISSIONS: (workspaceId: string) =>
+      `/identity/workspaces/${workspaceId}/permissions/me`,
+    ALL_PERMISSIONS: (workspaceId: string) =>
+      `/identity/workspaces/${workspaceId}/permissions`,
     ACCEPT_INVITE_BY_MEMBERSHIP: (membershipId: string) =>
       `/identity/workspaces/accept-invite/${membershipId}`,
+  },
+  INVITES: {
+    INFO: (membershipId: string) => `/identity/invites/${membershipId}/info`,
+    PENDING_BY_EMAIL: (email: string) => `/identity/invites/pending-by-email/${email}`,
   },
 } as const;

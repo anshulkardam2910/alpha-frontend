@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, startTransition } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -8,95 +8,116 @@ import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AuthDivider } from '@/modules/auth/components/AuthDivider';
-import { ApiError } from '@/lib/apiClient';
-import { SignInForm, signInSchema } from '@/modules/auth/schema';
+import { ApiError, post as apiPost } from '@/lib/apiClient';
+import { API_ENDPOINTS } from '@/lib/api.config';
+import { type SignInForm, signInSchema } from '@/modules/auth/schema';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { AuthOAuthButtons } from '@/modules/auth/components/AuthOAuthButtons';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSignIn } from '@/modules/auth/hooks';
 import { useAuthStore } from '@/store/authStore';
-import { OAuthResponse, User } from '@/modules/auth/types';
+import { type OAuthResponse, type User } from '@/modules/auth/types';
+
+const REASON_MESSAGES: Record<string, string> = {
+  session_expired: 'Your session has expired. Please log in again.',
+};
 
 export default function SignInPage() {
-  const [showPassword, setShowPassword] = useState(false);
+  const searchParams = useSearchParams();
+  const inviteId = searchParams.get('invite');
+  const reason = searchParams.get('reason');
+
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const { mutate: signIn, isPending } = useSignIn();
+  const messageShownRef = useRef(false);
+
   const form = useForm<SignInForm>({
     resolver: zodResolver(signInSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
+    defaultValues: { email: '', password: '' },
   });
 
-  const { mutate: signIn, isPending } = useSignIn();
+  useEffect(() => {
+    if (reason && REASON_MESSAGES[reason] && !messageShownRef.current) {
+      messageShownRef.current = true;
+      toast.error(REASON_MESSAGES[reason]);
+    }
+  }, [reason]);
 
-  const onSubmit = useCallback(
-    (data: SignInForm) => {
-      signIn(data, {
-        onSuccess: (response) => {
-          useAuthStore
-            .getState()
-            .login(
-              { accessToken: response.accessToken, refreshToken: response.refreshToken },
-              response.user,
-            );
+  function onSubmit(data: SignInForm) {
+    signIn(data, {
+      onSuccess: async (response) => {
+        useAuthStore.getState().login(
+          { accessToken: response.accessToken, refreshToken: response.refreshToken },
+          response.user,
+        );
+
+        if (inviteId) {
+          try {
+            await apiPost(API_ENDPOINTS.WORKSPACE.ACCEPT_INVITE_BY_MEMBERSHIP(inviteId));
+            toast.success('Welcome back! Invitation accepted.');
+          } catch {
+            toast.success('Successfully logged in!');
+            toast.error('Failed to accept invitation. You can accept it from the Invites page.');
+          }
+        } else {
           toast.success('Successfully logged in!');
-          form.reset();
-          startTransition(() => {
-            router.replace('/dashboard');
-          });
-        },
-        onError: (error: unknown) => {
-          if (error instanceof ApiError) {
-            if (error.isValidation() && error.errors) {
-              Object.entries(error.errors).forEach(([field, messages]) => {
-                form.setError(field as keyof SignInForm, { message: messages[0] });
-              });
-              return;
-            }
-            toast.error(error.message);
+        }
+
+        form.reset();
+        startTransition(() => {
+          router.replace('/dashboard');
+        });
+      },
+      onError: (error) => {
+        if (error instanceof ApiError) {
+          if (
+            error.message.includes('pending invitation') ||
+            error.message.includes('complete your account setup')
+          ) {
+            toast.error('You have a pending invitation. Please complete your account setup.');
+            startTransition(() => {
+              router.replace(`/signup?email=${encodeURIComponent(form.getValues('email'))}`);
+            });
             return;
           }
-          toast.error('Something went wrong. Please try again.');
-        },
-      });
-    },
-    [signIn],
-  );
 
-  const handleOAuthSuccess = (response: OAuthResponse) => {
+          if (error.isValidation() && error.errors) {
+            Object.entries(error.errors).forEach(([field, messages]) => {
+              form.setError(field as keyof SignInForm, { message: messages[0] });
+            });
+            return;
+          }
+
+          toast.error(error.message);
+          return;
+        }
+
+        toast.error('Something went wrong. Please try again.');
+      },
+    });
+  }
+
+  function handleOAuthSuccess(response: OAuthResponse) {
     const userWithMemberships = {
       ...response.user,
-      memberships: response.user.memberships || [],
+      memberships: response.user.memberships ?? [],
     } as User;
 
-    useAuthStore
-      .getState()
-      .login(
-        { accessToken: response.accessToken, refreshToken: response.refreshToken },
-        userWithMemberships,
-      );
+    useAuthStore.getState().login(
+      { accessToken: response.accessToken, refreshToken: response.refreshToken },
+      userWithMemberships,
+    );
 
-    if (response.isNewUser) {
-      toast.success('Welcome! Your account has been created with Google.');
-    } else {
-      toast.success('Welcome back!');
-    }
+    toast.success(response.isNewUser ? 'Welcome! Your account has been created.' : 'Welcome back!');
 
-    // Check if workspace setup is needed
-    if (response.needsWorkspaceSetup) {
-      router.push('/workspace-setup');
-      return;
-    }
+    startTransition(() => {
+      router.replace(response.needsWorkspaceSetup ? '/workspace-setup' : '/dashboard');
+    });
+  }
 
-    // Go to dashboard if everything is set up
-    router.push('/dashboard');
-  };
-
-  const handleOAuthError = (provider: string) => (error: Error) => {
-    toast.error(`${provider} sign-up failed: ${error.message}`);
-  };
+  const signUpHref = inviteId ? `/signup?invite=${inviteId}` : '/signup';
 
   return (
     <>
@@ -110,10 +131,10 @@ export default function SignInPage() {
 
       <AuthOAuthButtons
         onSuccess={handleOAuthSuccess}
-        onError={handleOAuthError('google')}
+        onError={(error: Error) => toast.error(`Sign-in failed: ${error.message}`)}
         disabled={isPending}
-        text={false ? 'Accept invitation with Google' : 'Continue with Google'}
-        inviteId={undefined}
+        text="Continue with Google"
+        inviteId={inviteId ?? undefined}
         isSignup={false}
       />
 
@@ -191,7 +212,7 @@ export default function SignInPage() {
 
       <p className="text-center mt-8 text-sm text-muted-foreground">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="text-primary font-medium hover:underline">
+        <Link href={signUpHref} className="text-primary font-medium hover:underline">
           Sign up
         </Link>
       </p>

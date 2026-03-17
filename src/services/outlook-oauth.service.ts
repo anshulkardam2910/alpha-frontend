@@ -53,7 +53,7 @@ class OutlookOAuthService {
     isSignup: boolean = false,
     userId?: string,
   ): Promise<{ authUrl: string; state: string; requestedScopes: string[] }> {
-    const response = await apiClient.post(`/initiate`, {
+    const response = await apiClient.post(`/identity/auth/outlook/initiate`, {
       inviteId,
       isSignup,
       userId, // userId is passed when connecting as integration (not login)

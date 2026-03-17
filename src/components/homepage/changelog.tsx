@@ -39,7 +39,7 @@ const entries = [
                 {/* Timeline */}
                 <div className="flex items-center mb-8">
                   <div
-                    className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                       entry.active
                         ? "bg-destructive shadow-[0_0_8px_2px_hsl(var(--destructive)/0.4)]"
                         : "bg-muted-foreground/30 border border-border"

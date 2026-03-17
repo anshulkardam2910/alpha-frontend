@@ -20,6 +20,7 @@ export const signUpSchema = z.object({
   email: z.email('Invalid email address').min(1, 'Email is required'),
   phone: z.string().refine(isValidPhoneNumber, { message: 'Invalid phone number' }),
   password: passwordSchema,
+  inviteId: z.string().optional(),
 });
 
 export type SignInForm = z.infer<typeof signInSchema>;
