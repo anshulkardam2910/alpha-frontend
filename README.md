@@ -7,7 +7,7 @@ Modern revenue teams juggle dozens of tools (CRM, email sequencer, ads manager, 
 | Environment | URL | Branch |
 |---|---|---|
 | 🟢 Production | https://alpha-frontend-prod.vercel.app | `main` |
-| 🟡 Staging | https://alpha-frontend-preview.vercel.app/ | `staging` |
+| 🟡 Preview | https://alpha-frontend-preview.vercel.app/ | `dev` |
 
 
 ## 📋 Table of Contents
@@ -224,14 +224,14 @@ Workflow reference:
 **Deploy flow:**
 
 Push to main or dev
-        │
+         │
         ▼
 GitHub Action runs
-        │
+         │
         ▼
 Repository mirrored to:
 anshulkardam2910/alpha-frontend
-        │
+         │
         ▼
 Vercel automatically builds and deploys
 

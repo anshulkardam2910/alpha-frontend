@@ -48,9 +48,28 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --animate-marquee: marquee var(--duration) infinite linear;
+  --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+  @keyframes marquee {
+  from {
+    transform: translateX(0);
+    }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+    }
+  }
+  @keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+    }
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+    }
+  }
 }
 
 :root {
+  --expo-out: cubic-bezier(0.16, 1, 0.3, 1);
   --background: oklch(0.9911 0 0);
   --foreground: oklch(0.2050 0 0);
   --card: oklch(1.0000 0 0);
@@ -142,21 +161,4 @@
   body {
     @apply bg-background text-foreground;
   }
-}
-
-
-/* Hero section ambient glow — soft, cohesive with theme */
-.hero-glow {
-  background: radial-gradient(
-    ellipse 90% 55% at 50% -10%,
-    oklch(0.96 0.008 260 / 0.25) 0%,
-    transparent 55%
-  );
-}
-.dark .hero-glow {
-  background: radial-gradient(
-    ellipse 90% 55% at 50% -10%,
-    oklch(0.22 0.015 260 / 0.2) 0%,
-    transparent 55%
-  );
 }
