@@ -121,8 +121,12 @@ export const useAuthStore = create<AuthStore>()(
 
       setCurrentWorkspace: (workspace) => {
         set({ currentWorkspace: workspace });
-        if (typeof window !== 'undefined' && workspace?.id) {
-          localStorage.setItem('currentWorkspaceId', workspace.id);
+        if (typeof window !== 'undefined') {
+          if (workspace?.id) {
+            localStorage.setItem('currentWorkspaceId', workspace.id);
+          } else {
+            localStorage.removeItem('currentWorkspaceId');
+          }
         }
       },
 
@@ -151,7 +155,12 @@ export const useAuthStore = create<AuthStore>()(
         if (sessionRestoreAttempted) return;
         sessionRestoreAttempted = true;
 
-        const refreshed = await get().refreshTokens();
+        let refreshed: string | null = null;
+        try {
+          refreshed = await get().refreshTokens();
+        } catch {
+          // Network error — can't restore session right now
+        }
         if (!refreshed) {
           set({ isBootstrapping: false });
           return;
@@ -181,13 +190,13 @@ export const useAuthStore = create<AuthStore>()(
               );
               currentWorkspace = membership?.workspace ?? { id: savedWorkspaceId };
             }
-            set((s) => ({ ...s, user: userData, currentWorkspace }));
+            set((s) => {
+              s.user = userData;
+              s.currentWorkspace = currentWorkspace;
+            });
           }
         } catch (err: unknown) {
-          const status =
-            (err as { response?: { status?: number }; message?: string })?.response?.status ??
-            (err as { message?: string })?.message;
-          console.error('Failed to restore session:', status);
+          console.error('Failed to restore session:', err);
 
           session.remove('_rt');
           set({ accessToken: null });
@@ -208,34 +217,36 @@ export const useAuthStore = create<AuthStore>()(
         const refreshToken = session.get('_rt');
         if (!refreshToken) return null;
 
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+        const baseUrl = API_CONFIG.BASE_URL;
         if (!baseUrl) return null;
 
-        try {
-          const res = await fetch(`${baseUrl}/auth/refresh`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken }),
-          });
+        // Uses raw fetch (not apiClient) to avoid circular dependency
+        // with the Axios interceptor that calls this.
+        // Network errors (fetch throws) are intentionally NOT caught here
+        // so the caller (apiClient interceptor) can distinguish transient
+        // failures from real auth failures.
+        const res = await fetch(`${baseUrl}${API_ENDPOINTS.AUTH.REFRESH}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
 
-          if (!res.ok) {
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
             get().clearAuth();
-            return null;
           }
+          return null;
+        }
 
-          const data = await res.json();
-          const { accessToken, refreshToken: newRefreshToken } = data;
-          if (!accessToken) {
-            get().clearAuth();
-            return null;
-          }
-
-          get().setTokens({ accessToken, refreshToken: newRefreshToken });
-          return accessToken;
-        } catch {
+        const data = await res.json();
+        const { accessToken, refreshToken: newRefreshToken } = data;
+        if (!accessToken) {
           get().clearAuth();
           return null;
         }
+
+        get().setTokens({ accessToken, refreshToken: newRefreshToken });
+        return accessToken;
       },
     })),
     { name: 'AuthStore' },
@@ -245,36 +256,11 @@ export const useAuthStore = create<AuthStore>()(
 // ---------------------------------------------------------------------------
 // Auth store initializer (run once in app root, e.g. layout.tsx)
 // - Restores session from refresh token on mount
-// - Subscribes to auth:logout and auth:token-update window events
 // ---------------------------------------------------------------------------
 
 export function AuthStoreInit() {
   useEffect(() => {
     useAuthStore.getState().restoreSession();
-  }, []);
-
-  useEffect(() => {
-    const handleLogout = () => useAuthStore.getState().logout();
-
-    const handleTokenUpdate = (
-      event: CustomEvent<{ accessToken?: string; refreshToken?: string }>,
-    ) => {
-      const detail = event.detail;
-      if (detail?.accessToken || detail?.refreshToken) {
-        useAuthStore.getState().setTokens({
-          accessToken: detail.accessToken,
-          refreshToken: detail.refreshToken,
-        });
-      }
-    };
-
-    window.addEventListener('auth:logout', handleLogout as EventListener);
-    window.addEventListener('auth:token-update', handleTokenUpdate as EventListener);
-
-    return () => {
-      window.removeEventListener('auth:logout', handleLogout as EventListener);
-      window.removeEventListener('auth:token-update', handleTokenUpdate as EventListener);
-    };
   }, []);
 
   return null;
