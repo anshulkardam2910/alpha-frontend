@@ -341,6 +341,8 @@ export class GoogleOAuthService {
    */
   async openGoogleAuthPopup(authUrl: string): Promise<{ code: string; state?: string }> {
     return new Promise((resolve, reject) => {
+      let settled = false;
+
       const popup = window.open(
         authUrl,
         'google-oauth',
@@ -348,72 +350,59 @@ export class GoogleOAuthService {
       );
 
       if (!popup) {
-        reject(new Error('Failed to open popup window'));
+        reject(new Error('Failed to open popup window. Please allow popups for this site.'));
         return;
       }
 
-      // Listen for PostMessage from the popup
+      const cleanup = () => {
+        window.removeEventListener('message', messageListener);
+        clearInterval(checkClosed);
+        clearTimeout(timeout);
+      };
+
       const messageListener = (event: MessageEvent) => {
-        // Verify origin for security - allow messages from API Gateway and frontend
+        if (settled) return;
+
         const allowedOrigins = [
           process.env.NEXT_PUBLIC_APP_URL,
           window.location.origin,
-          'http://localhost:3003', // API Gateway
-          'http://localhost:3000', // Identity-Service (if direct)
-          'https://web.get-alpha.ai', // Production API Gateway
-          'https://api.get-alpha.ai' // Production API Gateway alternative
+          'http://localhost:3003',
+          'http://localhost:3000',
+          'https://web.get-alpha.ai',
+          'https://api.get-alpha.ai',
         ];
-        
-        console.log('Google OAuth - Received message:', {
-          type: event.data?.type,
-          origin: event.origin,
-          allowed: allowedOrigins.includes(event.origin),
-          data: event.data
-        });
-        
-        if (!allowedOrigins.includes(event.origin)) {
-          console.log('Google OAuth - Ignoring message from different origin:', event.origin, 'Allowed origins:', allowedOrigins);
-          return;
-        }
 
-        if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
-          console.log('Google OAuth - Success message received, closing popup and resolving', event.data.data);
-          window.removeEventListener('message', messageListener);
-          if (popup && !popup.closed) {
-            popup.close();
-          }
-          
-          // Resolve with the actual authentication data from the backend
+        if (!allowedOrigins.includes(event.origin)) return;
+
+        if (event.data?.type === 'GOOGLE_OAUTH_SUCCESS') {
+          settled = true;
+          cleanup();
+          if (popup && !popup.closed) popup.close();
           resolve(event.data.data);
-          
-        } else if (event.data.type === 'GOOGLE_OAUTH_ERROR') {
-          console.log('Google OAuth - Error message received', event.data.error);
-          window.removeEventListener('message', messageListener);
-          if (popup && !popup.closed) {
-            popup.close();
-          }
+        } else if (event.data?.type === 'GOOGLE_OAUTH_ERROR') {
+          settled = true;
+          cleanup();
+          if (popup && !popup.closed) popup.close();
           reject(new Error(event.data.error || 'OAuth authentication failed'));
         }
       };
 
       window.addEventListener('message', messageListener);
 
-      // Check if popup is closed manually
       const checkClosed = setInterval(() => {
+        if (settled) return;
         if (popup.closed) {
-          clearInterval(checkClosed);
-          window.removeEventListener('message', messageListener);
+          settled = true;
+          cleanup();
           reject(new Error('Authentication was cancelled'));
         }
       }, 1000);
 
-      // Timeout after 5 minutes
-      setTimeout(() => {
-        clearInterval(checkClosed);
-        window.removeEventListener('message', messageListener);
-        if (!popup.closed) {
-          popup.close();
-        }
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (!popup.closed) popup.close();
         reject(new Error('Authentication timed out'));
       }, 5 * 60 * 1000);
     });
@@ -447,95 +436,77 @@ export class GoogleOAuthService {
    * Complete Google OAuth flow in popup (for non-Safari browsers)
    */
   async authenticateWithGooglePopup(inviteId?: string, isSignup: boolean = false): Promise<GoogleAuthResponse> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Step 1: Initiate OAuth with inviteId in state
-        const { authUrl } = await this.initiateGoogleAuth(undefined, isSignup, inviteId);
-        
-        console.log('Google OAuth URL (popup):', authUrl);
-        console.log('inviteId being passed in state:', inviteId);
-        
-        // Step 2: Open popup and wait for PostMessage
-        const popup = window.open(
-          authUrl,
-          'google-oauth',
-          'width=500,height=600,left=' + (window.screen.width / 2 - 250) + ',top=' + (window.screen.height / 2 - 300)
-        );
+    // Step 1: Initiate OAuth with inviteId in state
+    const { authUrl } = await this.initiateGoogleAuth(undefined, isSignup, inviteId);
 
-        if (!popup) {
-          reject(new Error('Failed to open popup window'));
-          return;
-        }
+    // Step 2: Open popup and wait for PostMessage
+    return new Promise((resolve, reject) => {
+      let settled = false;
 
-        console.log('Google OAuth (authenticateWithGoogle) - Popup opened', popup);
+      const popup = window.open(
+        authUrl,
+        'google-oauth',
+        'width=500,height=600,left=' + (window.screen.width / 2 - 250) + ',top=' + (window.screen.height / 2 - 300)
+      );
 
-        console.log('Google OAuth (authenticateWithGoogle) - Message listener started');
-        // Listen for PostMessage from the backend
-        const messageListener = (event: MessageEvent) => {
-          console.log('Google OAuth (authenticateWithGoogle) - Received message:', event);
-          console.log('Google OAuth (authenticateWithGoogle) - Event origin:', event.origin);
-          console.log('Google OAuth (authenticateWithGoogle) - Event data:', event.data);
-          
-          // Verify origin for security - allow messages from API Gateway and frontend
-          const allowedOrigins = [
-            process.env.NEXT_PUBLIC_APP_URL,
-            window.location.origin,
-            'http://localhost:3003', // API Gateway
-            'https://web.get-alpha.ai' // Production API Gateway
-          ];
-
-          if (!allowedOrigins.includes(event.origin)) {
-            console.log('Google OAuth (authenticateWithGoogle) - Ignoring message from different origin:', event.origin);
-            return;
-          }
-
-          if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
-            console.log('Google OAuth (authenticateWithGoogle) - Success message received, closing popup and resolving');
-            window.removeEventListener('message', messageListener);
-            popup.close();
-            resolve(event.data.data);
-            
-          } else if (event.data.type === 'GOOGLE_OAUTH_ERROR') {
-            window.removeEventListener('message', messageListener);
-            popup.close();
-            reject(new Error(event.data.error || 'OAuth authentication failed'));
-          }
-        };
-
-        console.log('Google OAuth (authenticateWithGoogle) - Message listener added');
-
-        window.addEventListener('message', messageListener);
-
-        console.log('Google OAuth (authenticateWithGoogle) - Message listener added to window');
-
-        // Check if popup is closed manually
-        const checkClosed = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageListener);
-            reject(new Error('Authentication was cancelled'));
-          }
-        }, 1000);
-
-        console.log('Google OAuth (authenticateWithGoogle) - Check closed interval started');
-
-        console.log('Google OAuth (authenticateWithGoogle) - Timeout after 5 minutes started');
-
-        // Timeout after 5 minutes
-        setTimeout(() => {
-          clearInterval(checkClosed);
-          window.removeEventListener('message', messageListener);
-          if (!popup.closed) {
-            popup.close();
-          }
-          console.log('Google OAuth (authenticateWithGoogle) - Timeout after 5 minutes completed');
-          reject(new Error('Authentication timed out'));
-        }, 5 * 60 * 1000);
-
-      } catch (error) {
-        console.error('Google OAuth error:', error);
-        reject(error);
+      if (!popup) {
+        reject(new Error('Failed to open popup window. Please allow popups for this site.'));
+        return;
       }
+
+      const cleanup = () => {
+        window.removeEventListener('message', messageListener);
+        clearInterval(checkClosed);
+        clearTimeout(timeout);
+      };
+
+      const messageListener = (event: MessageEvent) => {
+        if (settled) return;
+
+        // Verify origin for security - allow messages from API Gateway and frontend
+        const allowedOrigins = [
+          process.env.NEXT_PUBLIC_APP_URL,
+          window.location.origin,
+          'http://localhost:3003',
+          'https://web.get-alpha.ai',
+          'https://api.get-alpha.ai',
+        ];
+
+        if (!allowedOrigins.includes(event.origin)) return;
+
+        if (event.data?.type === 'GOOGLE_OAUTH_SUCCESS') {
+          settled = true;
+          cleanup();
+          if (popup && !popup.closed) popup.close();
+          resolve(event.data.data);
+        } else if (event.data?.type === 'GOOGLE_OAUTH_ERROR') {
+          settled = true;
+          cleanup();
+          if (popup && !popup.closed) popup.close();
+          reject(new Error(event.data.error || 'OAuth authentication failed'));
+        }
+      };
+
+      window.addEventListener('message', messageListener);
+
+      // Check if popup is closed manually
+      const checkClosed = setInterval(() => {
+        if (settled) return;
+        if (popup.closed) {
+          settled = true;
+          cleanup();
+          reject(new Error('Authentication was cancelled'));
+        }
+      }, 1000);
+
+      // Timeout after 5 minutes
+      const timeout = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (!popup.closed) popup.close();
+        reject(new Error('Authentication timed out'));
+      }, 5 * 60 * 1000);
     });
   }
 

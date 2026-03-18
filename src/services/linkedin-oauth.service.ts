@@ -56,82 +56,78 @@ class LinkedInOAuthService {
     isSignup: boolean = false,
     userId?: string,
   ): Promise<LinkedInAuthResponse> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const { authUrl } = await this.initiateLinkedInAuth(undefined, isSignup, userId);
+    const { authUrl } = await this.initiateLinkedInAuth(undefined, isSignup, userId);
 
-        // Open popup window (like Google OAuth)
-        const popup = window.open(
-          authUrl,
-          'linkedin-auth',
-          'width=500,height=600,left=' +
-            (window.screen.width / 2 - 250) +
-            ',top=' +
-            (window.screen.height / 2 - 300),
-        );
+    return new Promise((resolve, reject) => {
+      let settled = false;
 
-        if (!popup) {
-          throw new Error('Failed to open popup window');
-        }
+      const popup = window.open(
+        authUrl,
+        'linkedin-auth',
+        'width=500,height=600,left=' +
+          (window.screen.width / 2 - 250) +
+          ',top=' +
+          (window.screen.height / 2 - 300),
+      );
 
-        // Listen for messages from popup (like Google OAuth)
-        const messageListener = (event: MessageEvent) => {
-          console.log('LinkedIn OAuth - Received message:', event.data);
-
-          // Verify origin for security - allow messages from API Gateway and frontend
-          const allowedOrigins = [
-            process.env.NEXT_PUBLIC_APP_URL,
-            window.location.origin,
-            'http://localhost:3003', // API Gateway
-            'https://web.get-alpha.ai', // Production API Gateway
-          ];
-
-          if (!allowedOrigins.includes(event.origin)) {
-            console.log('LinkedIn OAuth - Ignoring message from different origin:', event.origin);
-            return;
-          }
-
-          if (event.data.type === 'LINKEDIN_OAUTH_SUCCESS') {
-            console.log('LinkedIn OAuth - Success message received');
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageListener);
-            popup.close();
-            resolve(event.data.data);
-          } else if (event.data.type === 'LINKEDIN_OAUTH_ERROR') {
-            console.log('LinkedIn OAuth - Error message received:', event.data.error);
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageListener);
-            popup.close();
-            reject(new Error(event.data.error));
-          }
-        };
-
-        window.addEventListener('message', messageListener);
-
-        // Check if popup is closed manually (like Google OAuth)
-        const checkClosed = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageListener);
-            reject(new Error('Authentication was cancelled'));
-          }
-        }, 1000);
-
-        // Timeout after 5 minutes (like Google OAuth)
-        setTimeout(
-          () => {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageListener);
-            if (!popup.closed) {
-              popup.close();
-            }
-            reject(new Error('Authentication timed out'));
-          },
-          5 * 60 * 1000,
-        );
-      } catch (error) {
-        reject(error);
+      if (!popup) {
+        reject(new Error('Failed to open popup window. Please allow popups for this site.'));
+        return;
       }
+
+      const cleanup = () => {
+        window.removeEventListener('message', messageListener);
+        clearInterval(checkClosed);
+        clearTimeout(timeout);
+      };
+
+      const messageListener = (event: MessageEvent) => {
+        if (settled) return;
+
+        const allowedOrigins = [
+          process.env.NEXT_PUBLIC_APP_URL,
+          window.location.origin,
+          'http://localhost:3003',
+          'https://web.get-alpha.ai',
+          'https://api.get-alpha.ai',
+        ];
+
+        if (!allowedOrigins.includes(event.origin)) return;
+
+        if (event.data?.type === 'LINKEDIN_OAUTH_SUCCESS') {
+          settled = true;
+          cleanup();
+          if (popup && !popup.closed) popup.close();
+          resolve(event.data.data);
+        } else if (event.data?.type === 'LINKEDIN_OAUTH_ERROR') {
+          settled = true;
+          cleanup();
+          if (popup && !popup.closed) popup.close();
+          reject(new Error(event.data.error || 'LinkedIn authentication failed'));
+        }
+      };
+
+      window.addEventListener('message', messageListener);
+
+      const checkClosed = setInterval(() => {
+        if (settled) return;
+        if (popup.closed) {
+          settled = true;
+          cleanup();
+          reject(new Error('Authentication was cancelled'));
+        }
+      }, 1000);
+
+      const timeout = setTimeout(
+        () => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          if (!popup.closed) popup.close();
+          reject(new Error('Authentication timed out'));
+        },
+        5 * 60 * 1000,
+      );
     });
   }
 

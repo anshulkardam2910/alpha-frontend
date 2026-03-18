@@ -7,6 +7,35 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
+/**
+ * Check if this page is running inside a popup opened by the parent window.
+ */
+function isPopupWindow(): boolean {
+  try {
+    return !!(window.opener && window.opener !== window);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get the postMessage event type based on the provider.
+ */
+function getMessageType(provider: string, success: boolean): string {
+  const prefix = provider === 'outlook' ? 'OUTLOOK' : 'GOOGLE';
+  return `${prefix}_OAUTH_${success ? 'SUCCESS' : 'ERROR'}`;
+}
+
+/**
+ * Send result to the parent (opener) window and close the popup.
+ */
+function sendToOpenerAndClose(provider: string, data: unknown, isError = false) {
+  const type = getMessageType(provider, !isError);
+  const message = isError ? { type, error: data } : { type, data };
+  window.opener.postMessage(message, window.location.origin);
+  window.close();
+}
+
 const OAuthCallback = () => {
   const searchParams = useSearchParams();
   const login = useAuthStore((state) => state.login);
@@ -17,6 +46,8 @@ const OAuthCallback = () => {
   const router = useRouter();
 
   useEffect(() => {
+    const isPopup = isPopupWindow();
+
     const handleOAuthCallback = async () => {
       try {
         // Detect provider from URL or params
@@ -26,12 +57,17 @@ const OAuthCallback = () => {
 
         // Check if this is a success redirect from the backend
         const success = searchParams.get('success');
-        const error = searchParams.get('error');
+        const errorParam = searchParams.get('error');
         const message = searchParams.get('message');
         const data = searchParams.get('data');
 
-        if (error) {
-          throw new Error(decodeURIComponent(message || 'OAuth authentication failed'));
+        if (errorParam) {
+          const errorMsg = decodeURIComponent(message || 'OAuth authentication failed');
+          if (isPopup) {
+            sendToOpenerAndClose(provider, errorMsg, true);
+            return;
+          }
+          throw new Error(errorMsg);
         }
 
         if (success && data) {
@@ -39,6 +75,12 @@ const OAuthCallback = () => {
           try {
             const response = JSON.parse(decodeURIComponent(data));
             console.log(`OAuth callback success (redirect) - ${provider}:`, response);
+
+            // If running in a popup, send data to parent and close
+            if (isPopup) {
+              sendToOpenerAndClose(provider, response);
+              return;
+            }
 
             // Store authentication data securely (NOT in localStorage)
             login({ accessToken: response.accessToken, refreshToken: response.refreshToken }, response.user);
@@ -73,6 +115,10 @@ const OAuthCallback = () => {
             return;
           } catch (parseError) {
             console.error('Failed to parse OAuth success data:', parseError);
+            if (isPopup) {
+              sendToOpenerAndClose(provider, 'Failed to process authentication data', true);
+              return;
+            }
             throw new Error('Failed to process authentication data');
           }
         }
@@ -82,6 +128,10 @@ const OAuthCallback = () => {
         const state = searchParams.get('state');
 
         if (!code) {
+          if (isPopup) {
+            sendToOpenerAndClose(provider, 'No authorization code received', true);
+            return;
+          }
           throw new Error('No authorization code received');
         }
 
@@ -104,6 +154,12 @@ const OAuthCallback = () => {
 
         console.log(`OAuth callback success - ${provider}:`, response);
 
+        // If running in a popup, send data to parent and close
+        if (isPopup) {
+          sendToOpenerAndClose(provider, response);
+          return;
+        }
+
         // Store authentication data securely (NOT in localStorage)
         login({ accessToken: response.accessToken, refreshToken: response.refreshToken }, response.user as User);
 
@@ -119,10 +175,8 @@ const OAuthCallback = () => {
         if (response.isNewUser && response.needsWorkspaceSetup) {
           redirectPath = '/signup/step2';
         } else if (inviteId || response.workspace) {
-          // If this was an invite acceptance, redirect to dashboard
           redirectPath = '/dashboard';
         } else {
-          // Check if there's a stored return URL
           const returnUrl = localStorage.getItem('oauth_return_url');
           if (returnUrl) {
             try {
@@ -135,18 +189,27 @@ const OAuthCallback = () => {
           }
         }
 
-        // Redirect to the appropriate page
         router.replace(redirectPath);
       } catch (error) {
         console.error('OAuth callback error:', error);
-        setError(error instanceof Error ? error.message : 'Authentication failed');
+        const errorMsg = error instanceof Error ? error.message : 'Authentication failed';
+
+        // If running in a popup, send error to parent and close
+        if (isPopup) {
+          const provider =
+            searchParams.get('provider') ||
+            (window.location.pathname.includes('outlook') ? 'outlook' : 'google');
+          sendToOpenerAndClose(provider, errorMsg, true);
+          return;
+        }
+
+        setError(errorMsg);
         setIsProcessing(false);
 
         toast.error('Authentication failed. Please try again.', {
           duration: 5000,
         });
 
-        // Redirect to login after a delay
         setTimeout(() => {
           router.replace('/login');
         }, 3000);
@@ -154,7 +217,7 @@ const OAuthCallback = () => {
     };
 
     handleOAuthCallback();
-  }, [searchParams, router]);
+  }, [searchParams, router, login]);
 
   if (isProcessing) {
     return (

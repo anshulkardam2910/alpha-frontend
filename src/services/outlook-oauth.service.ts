@@ -196,93 +196,81 @@ class OutlookOAuthService {
     isSignup: boolean = false,
     userId?: string,
   ): Promise<OutlookAuthResponse> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Step 1: Initiate OAuth with userId for integration (not login)
-        const { authUrl } = await this.initiateOutlookAuth(inviteId, isSignup, userId);
+    // Step 1: Initiate OAuth with userId for integration (not login)
+    const { authUrl } = await this.initiateOutlookAuth(inviteId, isSignup, userId);
 
-        console.log('Microsoft OAuth URL (popup):', authUrl);
-        console.log('inviteId being passed:', inviteId);
+    // Step 2: Open popup and wait for PostMessage
+    return new Promise((resolve, reject) => {
+      let settled = false;
 
-        // Step 2: Open popup and wait for PostMessage
-        const popup = window.open(
-          authUrl,
-          'outlook-oauth',
-          'width=500,height=600,left=' +
-            (window.screen.width / 2 - 250) +
-            ',top=' +
-            (window.screen.height / 2 - 300),
-        );
+      const popup = window.open(
+        authUrl,
+        'outlook-oauth',
+        'width=500,height=600,left=' +
+          (window.screen.width / 2 - 250) +
+          ',top=' +
+          (window.screen.height / 2 - 300),
+      );
 
-        if (!popup) {
-          reject(new Error('Failed to open popup window'));
-          return;
-        }
-
-        // Listen for PostMessage from the backend
-        const messageListener = (event: MessageEvent) => {
-          console.log('Microsoft OAuth (authenticateWithOutlook) - Received message:', event);
-          console.log('Microsoft OAuth (authenticateWithOutlook) - Event origin:', event.origin);
-          console.log('Microsoft OAuth (authenticateWithOutlook) - Event data:', event.data);
-
-          // Verify origin for security - allow messages from API Gateway and frontend
-          const allowedOrigins = [
-            process.env.NEXT_PUBLIC_APP_URL,
-            window.location.origin,
-            API_CONFIG.BASE_URL,
-            'http://localhost:3003', // API Gateway
-            'https://web.get-alpha.ai', // Production API Gateway
-          ];
-
-          if (!allowedOrigins.includes(event.origin)) {
-            console.log(
-              'Microsoft OAuth (authenticateWithOutlook) - Ignoring message from different origin:',
-              event.origin,
-            );
-            return;
-          }
-
-          if (event.data.type === 'OUTLOOK_OAUTH_SUCCESS') {
-            console.log(
-              'Microsoft OAuth (authenticateWithOutlook) - Success message received, closing popup and resolving',
-            );
-            window.removeEventListener('message', messageListener);
-            popup.close();
-            resolve(event.data.data);
-          } else if (event.data.type === 'OUTLOOK_OAUTH_ERROR') {
-            window.removeEventListener('message', messageListener);
-            popup.close();
-            reject(new Error(event.data.error || 'Microsoft OAuth authentication failed'));
-          }
-        };
-
-        window.addEventListener('message', messageListener);
-
-        // Check if popup is closed manually
-        const checkClosed = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageListener);
-            reject(new Error('Authentication was cancelled'));
-          }
-        }, 1000);
-
-        // Timeout after 5 minutes
-        setTimeout(
-          () => {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageListener);
-            if (!popup.closed) {
-              popup.close();
-            }
-            reject(new Error('Authentication timed out'));
-          },
-          5 * 60 * 1000,
-        );
-      } catch (error) {
-        console.error('Microsoft OAuth error:', error);
-        reject(error);
+      if (!popup) {
+        reject(new Error('Failed to open popup window. Please allow popups for this site.'));
+        return;
       }
+
+      const cleanup = () => {
+        window.removeEventListener('message', messageListener);
+        clearInterval(checkClosed);
+        clearTimeout(timeout);
+      };
+
+      const messageListener = (event: MessageEvent) => {
+        if (settled) return;
+
+        const allowedOrigins = [
+          process.env.NEXT_PUBLIC_APP_URL,
+          window.location.origin,
+          API_CONFIG.BASE_URL,
+          'http://localhost:3003',
+          'https://web.get-alpha.ai',
+          'https://api.get-alpha.ai',
+        ];
+
+        if (!allowedOrigins.includes(event.origin)) return;
+
+        if (event.data?.type === 'OUTLOOK_OAUTH_SUCCESS') {
+          settled = true;
+          cleanup();
+          if (popup && !popup.closed) popup.close();
+          resolve(event.data.data);
+        } else if (event.data?.type === 'OUTLOOK_OAUTH_ERROR') {
+          settled = true;
+          cleanup();
+          if (popup && !popup.closed) popup.close();
+          reject(new Error(event.data.error || 'Microsoft OAuth authentication failed'));
+        }
+      };
+
+      window.addEventListener('message', messageListener);
+
+      const checkClosed = setInterval(() => {
+        if (settled) return;
+        if (popup.closed) {
+          settled = true;
+          cleanup();
+          reject(new Error('Authentication was cancelled'));
+        }
+      }, 1000);
+
+      const timeout = setTimeout(
+        () => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          if (!popup.closed) popup.close();
+          reject(new Error('Authentication timed out'));
+        },
+        5 * 60 * 1000,
+      );
     });
   }
 
