@@ -39,6 +39,7 @@ export function AuthOAuthButtons({
       // If response is void, the user will be redirected and the callback page will handle success
     } catch (error) {
       console.error(error);
+      onError(error instanceof Error ? error : new Error('Google authentication failed'));
     }
   };
 
