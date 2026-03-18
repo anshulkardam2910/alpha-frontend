@@ -467,6 +467,9 @@ export class GoogleOAuthService {
           return;
         }
 
+        console.log('Google OAuth (authenticateWithGoogle) - Popup opened', popup);
+
+        console.log('Google OAuth (authenticateWithGoogle) - Message listener started');
         // Listen for PostMessage from the backend
         const messageListener = (event: MessageEvent) => {
           console.log('Google OAuth (authenticateWithGoogle) - Received message:', event);
@@ -499,7 +502,11 @@ export class GoogleOAuthService {
           }
         };
 
+        console.log('Google OAuth (authenticateWithGoogle) - Message listener added');
+
         window.addEventListener('message', messageListener);
+
+        console.log('Google OAuth (authenticateWithGoogle) - Message listener added to window');
 
         // Check if popup is closed manually
         const checkClosed = setInterval(() => {
@@ -510,6 +517,10 @@ export class GoogleOAuthService {
           }
         }, 1000);
 
+        console.log('Google OAuth (authenticateWithGoogle) - Check closed interval started');
+
+        console.log('Google OAuth (authenticateWithGoogle) - Timeout after 5 minutes started');
+
         // Timeout after 5 minutes
         setTimeout(() => {
           clearInterval(checkClosed);
@@ -517,6 +528,7 @@ export class GoogleOAuthService {
           if (!popup.closed) {
             popup.close();
           }
+          console.log('Google OAuth (authenticateWithGoogle) - Timeout after 5 minutes completed');
           reject(new Error('Authentication timed out'));
         }, 5 * 60 * 1000);
 

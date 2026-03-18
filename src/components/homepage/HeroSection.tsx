@@ -72,7 +72,7 @@ export default function HeroSection() {
             priority
           />
         </div>
-        <div className="pointer-events-none relative -mt-32 h-32 bg-linear-to-t from-background to-transparent" />
+        <div className="pointer-events-none hidden dark:block relative -mt-32 h-32 bg-linear-to-t from-background to-transparent" />
       </div>
     </section>
   );
