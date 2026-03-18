@@ -141,7 +141,7 @@ export const GridBackground = () => {
         }}
       />
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 hidden dark:block"
         style={{
           background:
             "radial-gradient(ellipse 90% 90% at 50% 30%, transparent 20%, #0a0a0a 70%)",

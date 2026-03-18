@@ -1,7 +1,4 @@
-"use client";
-
-import { Separator } from '@/components/ui/separator';
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+'use client';
 import { useAuthStore } from '@/store/authStore';
 
 export default function Page() {
@@ -14,14 +11,7 @@ export default function Page() {
 
   return (
     <div>
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-2" />
-          <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-          Dashboard
-        </header>
-      </SidebarInset>
-
+      <header className="flex h-16 shrink-0 items-center gap-2 px-4">Dashboard</header>
       <div className="p-6 sm:p-8 max-w-7xl mx-auto">
         <header className="mb-8">
           <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
