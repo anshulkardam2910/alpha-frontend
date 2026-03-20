@@ -6,6 +6,7 @@ import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { get as apiGet } from '@/lib/apiClient';
 import { toast } from 'sonner';
+import { useAuthStore } from './authStore';
 
 interface WorkspaceMember {
   id: string | null;
@@ -371,41 +372,46 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
  * window-focus refresh, and cross-tab storage events.
  */
 export function WorkspaceStoreInit() {
+  const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
+  const userId = useAuthStore((s) => s.user?.id);
   const workspaceId = useWorkspaceStore((s) => s.workspace?.id);
   const workspaceRole = useWorkspaceStore((s) => s.workspace?.role);
 
   useEffect(() => {
+    if (isBootstrapping || !userId) return;
     useWorkspaceStore.getState().refreshWorkspace();
-  }, []);
+  }, [isBootstrapping, userId]);
 
   useEffect(() => {
-    if (!workspaceId) return;
+    if (isBootstrapping || !userId || !workspaceId) return;
     const interval = workspaceRole === 'Owner' ? 30_000 : 120_000;
     const id = setInterval(() => {
       useWorkspaceStore.getState().refreshWorkspace(true);
     }, interval);
     return () => clearInterval(id);
-  }, [workspaceId, workspaceRole]);
+  }, [isBootstrapping, userId, workspaceId, workspaceRole]);
 
   useEffect(() => {
     const onFocus = () => {
+      if (isBootstrapping || !userId) return;
       if (useWorkspaceStore.getState().workspace) {
         useWorkspaceStore.getState().refreshWorkspace(true);
       }
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [workspaceId]);
+  }, [isBootstrapping, userId, workspaceId]);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
+      if (isBootstrapping || !userId) return;
       if (e.key === 'permissionChanged' && e.newValue && useWorkspaceStore.getState().workspace) {
         useWorkspaceStore.getState().refreshWorkspace(true);
       }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, [workspaceId]);
+  }, [isBootstrapping, userId, workspaceId]);
 
   return null;
 }

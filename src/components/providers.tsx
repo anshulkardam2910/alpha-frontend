@@ -5,6 +5,9 @@
 import { isServer, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { TooltipProvider } from './ui/tooltip';
+import { AuthStoreInit } from '@/store/authStore';
+import { WorkspaceStoreInit } from '@/store/workspaceStore';
+import { PermissionStoreInit } from '@/store/permissionStore';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -43,6 +46,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthStoreInit />
+      <WorkspaceStoreInit />
+      <PermissionStoreInit />
       <TooltipProvider>
         {children} <ReactQueryDevtools initialIsOpen={false} />
       </TooltipProvider>

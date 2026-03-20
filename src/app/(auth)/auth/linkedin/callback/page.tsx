@@ -46,7 +46,7 @@ const LinkedInCallback = () => {
             return;
           }
           toast.error(`LinkedIn authentication failed: ${decodeURIComponent(error)}`);
-          router.replace('/login');
+          router.replace('/signin');
           return;
         }
 
@@ -63,7 +63,7 @@ const LinkedInCallback = () => {
             return;
           }
           toast.error('Invalid authentication response from LinkedIn');
-          router.replace('/login');
+          router.replace('/signin');
           return;
         }
 
@@ -142,7 +142,7 @@ const LinkedInCallback = () => {
         }
 
         toast.error('Authentication failed. Please try again.');
-        router.replace('/login');
+        router.replace('/signin');
       } finally {
         setIsProcessing(false);
       }

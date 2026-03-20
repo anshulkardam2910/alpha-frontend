@@ -62,7 +62,7 @@ function processQueue(error: unknown, token: string | null = null) {
 function handleSessionExpired() {
   useAuthStore.getState().logout();
   if (typeof window !== 'undefined') {
-    window.location.href = '/login?reason=session_expired';
+    window.location.href = '/signin?reason=session_expired';
   }
 }
 

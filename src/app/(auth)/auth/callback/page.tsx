@@ -211,7 +211,7 @@ const OAuthCallback = () => {
         });
 
         setTimeout(() => {
-          router.replace('/login');
+          router.replace('/signin');
         }, 3000);
       }
     };
@@ -240,7 +240,7 @@ const OAuthCallback = () => {
             <h2 className="text-xl font-semibold text-red-800 mb-2">Authentication Failed</h2>
             <p className="text-red-600 mb-4">{error}</p>
             <p className="text-sm text-gray-600">
-              You will be redirected to the login page shortly.
+              You will be redirected to the sign in page shortly.
             </p>
           </div>
         </div>

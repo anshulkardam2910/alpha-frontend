@@ -4,6 +4,7 @@ import {
   BookOpen,
   Home,
   Inbox,
+  LogOut,
   Megaphone,
   PackageOpen,
   PanelLeftIcon,
@@ -30,6 +31,8 @@ import {
 } from '@/components/ui/sidebar';
 import { WorkspaceSwitcher } from '@/components/workspace-switcher';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
 
 type NavSubItem = { title: string; url: string; isActive?: boolean };
 type NavItem = { title: string; url: string; icon: LucideIcon; items?: NavSubItem[] };
@@ -66,6 +69,14 @@ const data: { navMain: NavItem[] } = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { toggleSidebar } = useSidebar();
+  const logout = useAuthStore((s) => s.logout);
+  const router = useRouter();
+
+  const handleLogout = React.useCallback(() => {
+    logout();
+    router.replace('/signin');
+  }, [logout, router]);
+
   return (
     <Sidebar collapsible="icon" variant="floating" {...props}>
       <SidebarHeader>
@@ -163,10 +174,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <Sparkles className="size-3" />
             Upgrade Plan
           </a>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-sidebar-border bg-sidebar py-1.5 text-[11px] font-semibold text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+          >
+            <LogOut className="size-3" />
+            Logout
+          </button>
         </div>
 
         {/* Collapsed state: icon-only credits indicator */}
-        <div className="hidden group-data-[collapsible=icon]:flex justify-center">
+        <div className="hidden group-data-[collapsible=icon]:flex flex-col items-center gap-2">
           <a
             href="#"
             className="flex size-8 items-center justify-center rounded-md bg-sidebar-accent transition-colors hover:bg-sidebar-primary hover:text-sidebar-primary-foreground"
@@ -174,6 +193,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           >
             <Zap className="size-4 text-amber-500" />
           </a>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex size-8 items-center justify-center rounded-md bg-sidebar-accent transition-colors hover:bg-sidebar-primary hover:text-sidebar-primary-foreground"
+            title="Logout"
+          >
+            <LogOut className="size-4" />
+          </button>
         </div>
       </SidebarFooter>
     </Sidebar>

@@ -6,6 +6,7 @@ import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { get as apiGet } from '@/lib/apiClient';
 import { useWorkspaceStore } from './workspaceStore';
+import { useAuthStore } from './authStore';
 import { toast } from 'sonner';
 
 export type PermissionName = string;
@@ -99,16 +100,20 @@ export const usePermissionStore = create<PermissionStore>()(
  * to keep permissions in sync whenever the active workspace or role changes.
  */
 export function PermissionStoreInit() {
+  const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
+  const userId = useAuthStore((s) => s.user?.id);
   const workspaceId = useWorkspaceStore((s) => s.workspace?.id);
   const workspaceRole = useWorkspaceStore((s) => s.workspace?.role);
 
   useEffect(() => {
-    if (workspaceId) {
+    if (isBootstrapping) return;
+
+    if (userId && workspaceId) {
       usePermissionStore.getState().refreshPermissions();
     } else {
       usePermissionStore.getState().reset();
     }
-  }, [workspaceId, workspaceRole]);
+  }, [isBootstrapping, userId, workspaceId, workspaceRole]);
 
   return null;
 }
